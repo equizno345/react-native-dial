@@ -1,4 +1,5 @@
 import React, { Component } from 'react'
+import PropTypes from 'prop-types'
 import {
   Dimensions,
   PanResponder,
@@ -10,6 +11,28 @@ import { throttle } from 'lodash'
 const GREY_LIGHT = '#eeeeee'
 
 export class Dial extends Component {
+  static propTypes = {
+    elastic: PropTypes.bool,
+    fixed: PropTypes.bool,
+    incrementBy: PropTypes.number,
+    initialAngle: PropTypes.number,
+    initialRadius: PropTypes.number,
+    onAngleXChange: PropTypes.func,
+    onPress: PropTypes.func,
+    onValueChange: PropTypes.func,
+    precision: PropTypes.number,
+    radiusMax: PropTypes.number,
+    radiusMin: PropTypes.number,
+    responderStyle: PropTypes.oneOfType([
+      PropTypes.object,
+      PropTypes.arrayOf(PropTypes.object)
+    ]),
+    wrapperStyle: PropTypes.oneOfType([
+      PropTypes.object,
+      PropTypes.arrayOf(PropTypes.object)
+    ])
+  }
+
   static defaultProps = {
     initialRadius: 1,
     initialAngle: 0,
@@ -25,12 +48,13 @@ export class Dial extends Component {
       releaseRadius: this.props.initialRadius,
       angle: this.props.initialAngle,
       radius: this.props.initialRadius,
+      angleX: this.props.initialAngle
     }
     this.offset = { x: 0, y: 0 }
     this.updateState = throttle(this.updateState.bind(this), 16)
   }
 
-  componentWillMount () {
+  componentWillMount() {
     this._panResponder = PanResponder.create({
       onStartShouldSetPanResponder: (e, gestureState) => true,
       onStartShouldSetPanResponderCapture: (e, gestureState) => {
@@ -63,7 +87,7 @@ export class Dial extends Component {
     })
   }
 
-  onLayout (nativeEvent) {
+  onLayout(nativeEvent) {
     /*
     * Multiple measures to avoid the gap between animated
     * and not animated views
@@ -72,7 +96,7 @@ export class Dial extends Component {
     setTimeout(() => this.measureOffset(), 200)
   }
 
-  measureOffset () {
+  measureOffset() {
     /*
     * const {x, y, width, height} = nativeEvent.layout
     * onlayout values are different than measureInWindow
@@ -90,15 +114,16 @@ export class Dial extends Component {
     })
   }
 
-  updateAngle (gestureState) {
+  updateAngle(gestureState) {
     let { deg, radius } = this.calcAngle(gestureState)
+    const degX = deg
     if (deg < 0) deg += 360
     if (Math.abs(this.state.angle - deg) > this.props.precision) {
-      this.updateState({ deg, radius })
+      this.updateState({ deg, degX, radius })
     }
   }
 
-  calcAngle (gestureState) {
+  calcAngle(gestureState) {
     const { pageX, pageY, moveX, moveY } = gestureState
     const [x, y] = [pageX || moveX, pageY || moveY]
     const [dx, dy] = [x - this.offset.x, y - this.offset.y]
@@ -108,7 +133,7 @@ export class Dial extends Component {
     }
   }
 
-  updateState ({ deg, radius = this.state.radius }) {
+  updateState({ deg, degX, radius = this.state.radius }) {
     radius = this.state.releaseRadius + radius - this.state.startingRadius
     if (radius < this.props.radiusMin) radius = this.props.radiusMin
     else if (radius > this.props.radiusMax) radius = this.props.radiusMax
@@ -120,16 +145,19 @@ export class Dial extends Component {
       this.setState({ angle, radius })
       if (this.props.onValueChange) this.props.onValueChange(angle, radius)
     }
+ 
+    this.setState({ angleX: degX })
+    if (this.props.onAngleXChange) this.props.onAngleXChange(degX)
   }
 
-  forceUpdate = (deg: number, radius: number) => {
+  forceUpdate = (deg, radius) => {
     this.setState({
       angle: deg === undefined ? this.state.angle : deg,
       radius: radius === undefined ? this.state.radius : radius,
     })
   }
 
-  render () {
+  render() {
     const rotate = this.props.fixed ? '0deg' : `${this.state.angle}deg`
     const scale = this.props.elastic ? this.state.radius : 1
 
