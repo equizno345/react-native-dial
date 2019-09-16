@@ -161,15 +161,23 @@ export class Dial extends Component {
     const rotate = this.props.fixed ? '0deg' : `${this.state.angle}deg`
     const scale = this.props.elastic ? this.state.radius : 1
 
+    /**
+     * `pointerEvents` are now ignored.
+     * Should be handled based on the component's internal structure and be added (if there are any)
+     * to the corresponding view(s).
+     */
+    const pevProp = this.props.pointerEvents != null ? { pointerEvents: this.props.pointerEvents } : {}
+
     return (
       <View
         onLayout={(nativeEvent) => this.onLayout(nativeEvent)}
         ref={(node) => { this.self = node }}
         style={[styles.coverResponder, this.props.responderStyle]}
+        {...pevProp}
         {...this._panResponder.panHandlers}
       >
         {this.props.children
-          ? <View style={[this.props.wrapperStyle, { transform: [{ rotate }, { scale }] }]}>
+          ? <View {...pevProp} style={[this.props.wrapperStyle, { transform: [{ rotate }, { scale }] }]}>
             {this.props.children}
           </View>
           : <DefaultDial style={this.props.style} rotate={rotate} scale={scale} />
