@@ -12,6 +12,7 @@ const GREY_LIGHT = '#eeeeee'
 
 export class Dial extends Component {
   static propTypes = {
+    pointerEvents: PropTypes.oneOf(['box-none', 'none', 'box-only', 'auto'])
     elastic: PropTypes.bool,
     fixed: PropTypes.bool,
     incrementBy: PropTypes.number,
