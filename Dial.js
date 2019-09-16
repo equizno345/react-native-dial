@@ -12,7 +12,6 @@ const GREY_LIGHT = '#eeeeee'
 
 export class Dial extends Component {
   static propTypes = {
-    pointerEvents: PropTypes.oneOf(['box-none', 'none', 'box-only', 'auto'])
     elastic: PropTypes.bool,
     fixed: PropTypes.bool,
     incrementBy: PropTypes.number,
@@ -21,6 +20,7 @@ export class Dial extends Component {
     onAngleXChange: PropTypes.func,
     onPress: PropTypes.func,
     onValueChange: PropTypes.func,
+    pointerEvents: PropTypes.oneOf(['box-none', 'none', 'box-only', 'auto']),
     precision: PropTypes.number,
     radiusMax: PropTypes.number,
     radiusMin: PropTypes.number,
