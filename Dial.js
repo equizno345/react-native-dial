@@ -1,16 +1,24 @@
-import React, { Component } from 'react'
-import PropTypes from 'prop-types'
+// Base imports
+import React from "react";
+import PropTypes from "prop-types";
+
+// UI Components
 import {
   Dimensions,
   PanResponder,
   StyleSheet,
   View,
-} from 'react-native'
-import { throttle } from 'lodash'
+  ViewPropTypes
+} from "react-native";
 
-const GREY_LIGHT = '#eeeeee'
+// Other
+import { throttle } from "lodash";
 
-export class Dial extends Component {
+
+const GREY_LIGHT = "#EEEEEE";
+
+
+export class Dial extends React.Component {
   static propTypes = {
     elastic: PropTypes.bool,
     fixed: PropTypes.bool,
@@ -20,28 +28,23 @@ export class Dial extends Component {
     onAngleXChange: PropTypes.func,
     onPress: PropTypes.func,
     onValueChange: PropTypes.func,
-    pointerEvents: PropTypes.oneOf(['box-none', 'none', 'box-only', 'auto']),
+    pointerEvents: PropTypes.oneOf(["box-none", "none", "box-only", "auto"]),
     precision: PropTypes.number,
     radiusMax: PropTypes.number,
     radiusMin: PropTypes.number,
-    responderStyle: PropTypes.oneOfType([
-      PropTypes.object,
-      PropTypes.arrayOf(PropTypes.object)
-    ]),
-    wrapperStyle: PropTypes.oneOfType([
-      PropTypes.object,
-      PropTypes.arrayOf(PropTypes.object)
-    ])
-  }
+    responderStyle: ViewPropTypes.style,
+    wrapperStyle: ViewPropTypes.style
+  };
 
   static defaultProps = {
     initialRadius: 1,
     initialAngle: 0,
-    precision: 0,
-  }
+    precision: 0
+  };
 
   constructor(props) {
-    super(props)
+    super(props);
+  
     this.state = {
       startingAngle: this.props.initialAngle,
       startingRadius: this.props.initialRadius,
@@ -50,129 +53,143 @@ export class Dial extends Component {
       angle: this.props.initialAngle,
       radius: this.props.initialRadius,
       angleX: this.props.initialAngle
+    };
+  
+    this.offset = { x: 0, y: 0 };
+    this.updateState = throttle(this.updateState.bind(this), 16);
+  }
+
+  updateState({ deg, degX, radius = this.state.radius }) {
+    radius = this.state.releaseRadius + radius - this.state.startingRadius;
+    if (radius < this.props.radiusMin) radius = this.props.radiusMin;
+    else if (radius > this.props.radiusMax) radius = this.props.radiusMax;
+
+    const angle = deg + this.state.releaseAngle - this.state.startingAngle;
+    if (deg < 0) deg += 360;
+
+    if (angle !== this.state.angle || radius !== this.state.radius) {
+      this.setState({ angle, radius });
+      this.props.onValueChange && this.props.onValueChange(angle, radius);
     }
-    this.offset = { x: 0, y: 0 }
-    this.updateState = throttle(this.updateState.bind(this), 16)
+ 
+    this.setState({ angleX: degX });
+    this.props.onAngleXChange && this.props.onAngleXChange(degX);
   }
 
-  componentWillMount() {
-    this._panResponder = PanResponder.create({
-      onStartShouldSetPanResponder: (e, gestureState) => true,
-      onStartShouldSetPanResponderCapture: (e, gestureState) => {
-        this.measureOffset() // measure again
-        const { deg, radius } = this.calcAngle(e.nativeEvent)
-        this.setState({ startingAngle: deg, startingRadius: radius })
-        return true
-      },
-      onMoveShouldSetPanResponder: (e, g) => true,
-      onMoveShouldSetPanResponderCapture: (e, gestureState) => true,
-      onPanResponderGrant: (e, gestureState) => true,
-      onPanResponderMove: (e, gestureState) => {
-        this.updateAngle(gestureState)
-      },
-      onPanResponderRelease: (e, gestureState) => {
-        const {
-          angle,
-          radius,
-          releaseAngle,
-          releaseRadius,
-        } = this.state
-
-        if (angle !== releaseAngle || radius !== releaseRadius) {
-          this.setState({
-            releaseAngle: angle,
-            releaseRadius: radius,
-          })
-        }
-      },
-    })
-  }
-
-  onLayout(nativeEvent) {
+  onLayout = () => {
     /*
     * Multiple measures to avoid the gap between animated
     * and not animated views
     */
-    this.measureOffset()
-    setTimeout(() => this.measureOffset(), 200)
-  }
+    this.measureOffset();
+    setTimeout(() => this.measureOffset(), 200);
+  };
 
-  measureOffset() {
+  measureOffset = () => {
     /*
     * const {x, y, width, height} = nativeEvent.layout
     * onlayout values are different than measureInWindow
     * x and y are the distances to its previous element
     * but in measureInWindow they are relative to the window
     */
-    const { width: screenWidth } = Dimensions.get('window')
+    const { width: screenWidth } = Dimensions.get("window");
 
     this.self.measureInWindow((x, y, width, height) => {
       this.offset = {
         x: x % screenWidth + width / 2,
         y: y + height / 2,
-      }
-      this.radius = width / 2
-    })
-  }
+      };
+      this.radius = width / 2;
+    });
+  };
 
-  updateAngle(gestureState) {
-    let { deg, radius } = this.calcAngle(gestureState)
-    const degX = deg
-    if (deg < 0) deg += 360
+  updateAngle = gestureState => {
+    let { deg, radius } = this.calcAngle(gestureState);
+    const degX = deg;
+    if (deg < 0) deg += 360;
     if (Math.abs(this.state.angle - deg) > this.props.precision) {
-      this.updateState({ deg, degX, radius })
+      this.updateState({ deg, degX, radius });
     }
-  }
+  };
 
-  calcAngle(gestureState) {
-    const { pageX, pageY, moveX, moveY } = gestureState
-    const [x, y] = [pageX || moveX, pageY || moveY]
-    const [dx, dy] = [x - this.offset.x, y - this.offset.y]
+  calcAngle = gestureState => {
+    const { pageX, pageY, moveX, moveY } = gestureState;
+    const [x, y] = [pageX || moveX, pageY || moveY];
+    const [dx, dy] = [x - this.offset.x, y - this.offset.y];
     return {
       deg: Math.atan2(dy, dx) * 180 / Math.PI + 120,
       radius: Math.sqrt(dy * dy + dx * dx) / this.radius, // pitagoras r^2 = x^2 + y^2 normalizado
-    }
-  }
-
-  updateState({ deg, degX, radius = this.state.radius }) {
-    radius = this.state.releaseRadius + radius - this.state.startingRadius
-    if (radius < this.props.radiusMin) radius = this.props.radiusMin
-    else if (radius > this.props.radiusMax) radius = this.props.radiusMax
-
-    const angle = deg + this.state.releaseAngle - this.state.startingAngle
-    if (deg < 0) deg += 360
-
-    if (angle !== this.state.angle || radius !== this.state.radius) {
-      this.setState({ angle, radius })
-      if (this.props.onValueChange) this.props.onValueChange(angle, radius)
-    }
- 
-    this.setState({ angleX: degX })
-    if (this.props.onAngleXChange) this.props.onAngleXChange(degX)
-  }
+    };
+  };
 
   forceUpdate = (deg, radius) => {
     this.setState({
       angle: deg === undefined ? this.state.angle : deg,
       radius: radius === undefined ? this.state.radius : radius,
-    })
+    });
+  };
+
+  resetState = () => {
+    this.setState({
+      startingAngle: this.props.initialAngle,
+      startingRadius: this.props.initialRadius,
+      releaseAngle: this.props.initialAngle,
+      releaseRadius: this.props.initialRadius,
+      angle: this.props.initialAngle,
+      radius: this.props.initialRadius,
+      angleX: this.props.initialAngle
+    });
+  };
+
+  // Lifecycle methods
+  componentWillMount() {
+    this._panResponder = PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponderCapture: e => {
+        this.measureOffset(); // measure again
+        const { deg, radius } = this.calcAngle(e.nativeEvent);
+        this.setState({ startingAngle: deg, startingRadius: radius });
+        return true;
+      },
+      onMoveShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponderCapture: () => true,
+      onPanResponderGrant: () => true,
+      onPanResponderMove: (_, gestureState) => {
+        this.updateAngle(gestureState);
+      },
+      onPanResponderRelease: () => {
+        const {
+          angle,
+          radius,
+          releaseAngle,
+          releaseRadius,
+        } = this.state;
+
+        if (angle !== releaseAngle || radius !== releaseRadius) {
+          this.setState({
+            releaseAngle: angle,
+            releaseRadius: radius,
+          });
+        }
+      },
+    });
   }
 
   render() {
-    const rotate = this.props.fixed ? '0deg' : `${this.state.angle}deg`
-    const scale = this.props.elastic ? this.state.radius : 1
+    const rotate = this.props.fixed ? "0deg" : `${this.state.angle}deg`;
+    const scale = this.props.elastic ? this.state.radius : 1;
 
     /**
      * `pointerEvents` are now ignored.
      * Should be handled based on the component's internal structure and be added (if there are any)
      * to the corresponding view(s).
      */
-    const pevProp = this.props.pointerEvents != null ? { pointerEvents: this.props.pointerEvents } : {}
+    const pevProp = this.props.pointerEvents != null ? { pointerEvents: this.props.pointerEvents } : {};
 
     return (
       <View
         onLayout={(nativeEvent) => this.onLayout(nativeEvent)}
-        ref={(node) => { this.self = node }}
+        ref={(node) => { this.self = node; }}
         style={[styles.coverResponder, this.props.responderStyle]}
         {...pevProp}
         {...this._panResponder.panHandlers}
@@ -184,11 +201,11 @@ export class Dial extends Component {
           : <DefaultDial style={this.props.style} rotate={rotate} scale={scale} />
         }
       </View>
-    )
+    );
   }
 }
 
-export const DefaultDial = ({ style = {}, rotate = '0rad', scale = 1 }) => (
+export const DefaultDial = ({ style = {}, rotate = "0rad", scale = 1 }) => (
   <View
     style={[styles.dial, style, {
       transform: [
@@ -199,7 +216,7 @@ export const DefaultDial = ({ style = {}, rotate = '0rad', scale = 1 }) => (
       <View style={styles.pointer} />
     </View>
   </View>
-)
+);
 
 const styles = StyleSheet.create({
   coverResponder: {
@@ -208,7 +225,7 @@ const styles = StyleSheet.create({
   dial: {
     width: 120,
     height: 120,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 60,
     elevation: 5,
     shadowColor: GREY_LIGHT,
@@ -222,16 +239,16 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     elevation: 3,
   },
   pointer: {
     top: 20,
     left: 20,
-    position: 'absolute',
+    position: "absolute",
     width: 10,
     height: 10,
-    backgroundColor: 'rgb(221,223,226)',
+    backgroundColor: "rgb(221,223,226)",
     borderRadius: 5,
   },
-})
+});
