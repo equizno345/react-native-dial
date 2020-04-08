@@ -56,7 +56,7 @@ export class Dial extends React.Component {
     };
   
     this.offset = { x: 0, y: 0 };
-    this.updateState = throttle(this.updateState.bind(this), 16);
+    this.updateState = throttle(this.updateState.bind(this), 16, { trailing: false });
   }
 
   updateState({ deg, degX, radius = this.state.radius }) {
@@ -64,7 +64,9 @@ export class Dial extends React.Component {
     if (radius < this.props.radiusMin) radius = this.props.radiusMin;
     else if (radius > this.props.radiusMax) radius = this.props.radiusMax;
 
-    const angle = deg + this.state.releaseAngle - this.state.startingAngle;
+    let angle = deg + this.state.releaseAngle - this.state.startingAngle;
+    if (angle > 360) angle = angle % 360
+    if (angle < 0) angle+= 360
     if (deg < 0) deg += 360;
 
     if (angle !== this.state.angle || radius !== this.state.radius) {
